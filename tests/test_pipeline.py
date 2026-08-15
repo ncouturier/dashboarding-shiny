@@ -140,9 +140,7 @@ def test_prepare_run_conserve_la_graine() -> None:
     assert run.seed == 7
 
 
-def test_build_decision_boundary_graine_change_les_classificateurs_stochastiques() -> (
-    None
-):
+def test_build_decision_boundary_stochastiques_suivent_la_graine() -> None:
     """Teste que la graine modifie l'ajustement d'un classificateur stochastique."""
     premier = prepare_run("moons", noise=0.3, n_samples=100, seed=42)
     second = prepare_run("moons", noise=0.3, n_samples=100, seed=7)
