@@ -11,7 +11,12 @@ from classifiers import get_classifier_names
 from pipeline import build_decision_boundary, prepare_run
 
 LIBELLES = ("Exactitude", "Rappel", "Précision")
-LIBELLE_ET_VALEUR = rf"({'|'.join(LIBELLES)}) (\d\.\d{{2}})"
+NOMS_ANGLAIS = {"Exactitude": "accuracy", "Rappel": "recall", "Précision": "precision"}
+
+# Le nom anglais s'intercale entre le libellé et la valeur, dans une balise dont la
+# couleur porte elle-même des chiffres — d'où l'ancrage sur la fin du texte plutôt que
+# sur le premier nombre rencontré. Chaque annotation ne porte qu'une métrique.
+LIBELLE_ET_VALEUR = rf"^({'|'.join(LIBELLES)})\b.*\s(\d\.\d{{2}})$"
 
 
 def metriques_affichees(figure: go.Figure) -> Optional[Dict[str, float]]:
@@ -183,6 +188,27 @@ def test_build_decision_boundary_annote_les_metriques_sur_chaque_vignette() -> N
         assert set(metriques) == set(LIBELLES), nom
         for libelle, valeur in metriques.items():
             assert 0.0 <= valeur <= 1.0, f"{nom} : {libelle} hors bornes ({valeur})"
+
+
+def test_chaque_metrique_porte_son_nom_anglais() -> None:
+    """Teste que le nom anglais accompagne le libellé français, à sa droite.
+
+    C'est le nom de la littérature et celui de l'identifiant du code : il fait le pont
+    entre la vignette et le glossaire.
+    """
+    run = prepare_run("moons", noise=0.3, n_samples=100, seed=42)
+    figure = build_decision_boundary(run, "Random Forest")
+
+    for annotation in figure.layout.annotations:
+        texte = str(annotation.text)
+        libelle = texte.split()[0]
+        assert libelle in NOMS_ANGLAIS, libelle
+
+        nom_anglais = NOMS_ANGLAIS[libelle]
+        assert nom_anglais in texte, f"{libelle} ne porte pas son nom anglais"
+        # À droite du libellé français, et à gauche de la valeur.
+        assert texte.index(libelle) < texte.index(nom_anglais), libelle
+        assert texte.index(nom_anglais) < texte.rindex(" "), libelle
 
 
 def test_chaque_metrique_rappelle_sa_definition_au_survol() -> None:

@@ -55,8 +55,10 @@ l'objet représenté dans chacune des dix vignettes.
 _Éviter_ : figure, graphique, visualisation, tracé
 
 **Score** (`score`) :
-Bloc de métriques affiché dans un coin de la vignette, chacune sous son libellé. Le
-mot désigne le bloc, jamais une métrique en particulier : celle qu'on vise se nomme.
+Bloc de métriques affiché dans un coin de la vignette, chacune sous son libellé, suivi
+de son nom anglais et de sa valeur. Le mot désigne le bloc, jamais une métrique en
+particulier : celle qu'on vise se nomme. Le nom anglais affiché est l'identifiant
+donné entre parenthèses ci-dessous — la vignette et le glossaire se répondent.
 _Éviter_ : performance, résultat, note
 
 **Exactitude** (`accuracy`) :

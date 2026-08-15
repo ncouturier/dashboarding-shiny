@@ -41,6 +41,16 @@ DEFINITIONS = {
 # Pas vertical entre deux métriques empilées, en fraction de la hauteur du tracé.
 PAS_METRIQUE = 0.09
 
+# Nom anglais accolé à chaque libellé français : c'est celui que porte la littérature,
+# et celui des identifiants du code. Il est grisé — le vocabulaire de l'interface reste
+# le français, l'anglais n'est qu'un repère.
+NOMS_ANGLAIS = {
+    "Exactitude": "accuracy",
+    "Rappel": "recall",
+    "Précision": "precision",
+}
+COULEUR_NOM_ANGLAIS = "#808495"
+
 
 def create_decision_boundary_plot(
     classifier: BaseEstimator,
@@ -177,7 +187,12 @@ def create_decision_boundary_plot(
             y=0.02 + rang * PAS_METRIQUE,
             xref="paper",
             yref="paper",
-            text=f"{libelle} {valeur:.2f}",
+            text=(
+                f"{libelle} "
+                f'<span style="color:{COULEUR_NOM_ANGLAIS}">'
+                f"{NOMS_ANGLAIS[libelle]}</span> "
+                f"{valeur:.2f}"
+            ),
             # Renseigner hovertext suffit : Plotly active alors de lui-même la capture
             # des événements de souris sur la boîte de l'annotation.
             hovertext=DEFINITIONS[libelle],
