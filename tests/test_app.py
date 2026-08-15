@@ -1,5 +1,7 @@
 """Tests pour l'application Shiny principale."""
 
+import os
+
 import pytest
 
 
@@ -151,15 +153,29 @@ def test_app_sérialise_la_figure_hors_de_la_boucle() -> None:
     assert "to_json()" in corps
 
 
-def test_app_pool_dimensionne_pour_une_salve() -> None:
-    """Teste que le pool peut absorber une salve complète de dix vignettes.
+def test_app_pool_borne_par_les_coeurs() -> None:
+    """Teste que le pool suit les cœurs, et non le nombre de vignettes.
 
-    En deçà, un ajustement non interruptible déjà lancé occuperait un fil dont une
-    vignette courante a besoin.
+    Un pool dimensionné sur la salve réclamait dix fils par session : la deuxième
+    connexion épuisait la machine. Borné par les cœurs, le nombre total de fils ne
+    dépend plus du nombre de sessions.
     """
-    source = _app_source()
+    import app
 
-    assert "MAX_WORKERS = 10" in source
+    assert app.MAX_WORKERS <= app.NOMBRE_DE_VIGNETTES
+    assert app.MAX_WORKERS <= max(2, os.process_cpu_count() or 2)
+
+
+def test_app_pool_garde_un_plancher() -> None:
+    """Teste qu'il reste un fil libre pour la salve courante.
+
+    Un calcul périmé n'est pas interruptible : sur une machine à un cœur, un pool d'un
+    seul fil ferait attendre la salve courante la fin d'un calcul dont plus personne
+    n'a l'usage.
+    """
+    import app
+
+    assert app.MAX_WORKERS >= 2
 
 
 def test_app_reutilise_le_graphique_plotly() -> None:

@@ -5,6 +5,7 @@ Visualisation interactive des algorithmes d'apprentissage automatique pour la cl
 """
 
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Optional
 
@@ -22,14 +23,32 @@ from pipeline import TILE_HEIGHT, Run, build_decision_boundary, prepare_run
 # masquait ce défaut, le second rendu trouvant la bibliothèque déjà chargée.
 PLOTLY_CDN = f"https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js"
 
+# Nombre de vignettes d'une salve, déduit du dispositif plutôt que réécrit à la main.
+NOMBRE_DE_VIGNETTES = len(get_classifier_names())
+
 # Pool de fils dédié et borné. Le pool par défaut d'asyncio est partagé par tout le
 # processus : un afflux de calculs abandonnés y priverait les autres sessions de fils.
 #
-# La borne vaut le nombre de vignettes. En deçà, les calculs d'une même salve se
-# bloqueraient les uns les autres : un ajustement en cours et non interruptible
-# occuperait un fil dont la vignette courante a besoin. Au-delà, on paierait des fils
-# inutiles — une salve ne demande jamais plus de dix calculs.
-MAX_WORKERS = 10
+# La borne suit les cœurs disponibles, et non le nombre de vignettes. L'ajustement d'un
+# classificateur puis la sérialisation de sa figure sont bornés par le processeur :
+# au-delà d'un fil par cœur, les calculs se disputent la même machine sans que le débit
+# augmente. Deux conséquences, l'une et l'autre recherchées sur un hébergement partagé.
+#
+# Le nombre total de fils cesse de dépendre du nombre de sessions. Dix fils par session
+# épuisaient la machine dès la deuxième connexion, chaque salve en réclamant dix ;
+# désormais la file d'attente absorbe les sessions supplémentaires et le débit reste
+# celui de la machine, quel que soit le nombre de spectateurs.
+#
+# Le rendu progressif y gagne. Dix calculs menés de front sur deux cœurs progressent
+# ensemble et s'achèvent ensemble : la grille se peint d'un coup, en fin de cycle. Deux
+# calculs à la fois s'achèvent l'un après l'autre — c'est précisément l'échelonnement
+# que l'application donne à voir.
+#
+# os.process_cpu_count respecte l'affinité du processus. Il ignore en revanche un quota
+# cgroup : un conteneur bridé à un demi-cœur sur une machine qui en compte seize en
+# verra seize. Le plancher de deux fils évite qu'un calcul périmé, qu'aucune annulation
+# n'interrompt, occupe le seul fil dont la salve courante a besoin.
+MAX_WORKERS = max(2, min(NOMBRE_DE_VIGNETTES, os.process_cpu_count() or 2))
 EXECUTEUR = ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix="vignette")
 
 # Définir l'UI
@@ -140,7 +159,7 @@ app_ui = ui.page_fluid(
                         ui.output_ui(f"classifier_{i}"),
                         class_="mb-3",
                     )
-                    for i in range(10)
+                    for i in range(NOMBRE_DE_VIGNETTES)
                 ],
                 class_="g-3",
             ),
