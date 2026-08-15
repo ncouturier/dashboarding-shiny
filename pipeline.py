@@ -79,9 +79,7 @@ def normalise_seed(seed: Optional[int]) -> int:
     return max(SEED_MIN, min(SEED_MAX, int(seed)))
 
 
-def prepare_run(
-    dataset_type: str, noise: float, n_samples: int, seed: Optional[int]
-) -> Run:
+def prepare_run(dataset_type: str, noise: float, n_samples: int, seed: Optional[int]) -> Run:
     """
     Générer un jeu de données et le répartir en ensembles d'entraînement et de test.
 
@@ -102,13 +100,9 @@ def prepare_run(
     if dataset_type == "moons":
         X, y = generate_moons(n_samples=n_samples, noise=noise, random_state=seed)
     elif dataset_type == "circles":
-        X, y = generate_circles(
-            n_samples=n_samples, noise=noise, factor=0.5, random_state=seed
-        )
+        X, y = generate_circles(n_samples=n_samples, noise=noise, factor=0.5, random_state=seed)
     elif dataset_type == "linear":
-        X, y = generate_linearly_separable(
-            n_samples=n_samples, noise=noise, random_state=seed
-        )
+        X, y = generate_linearly_separable(n_samples=n_samples, noise=noise, random_state=seed)
     else:
         raise ValueError(f"Forme de jeu de données inconnue: {dataset_type}")
 
@@ -116,9 +110,7 @@ def prepare_run(
         X, y, test_size=TEST_SIZE, random_state=seed
     )
 
-    return Run(
-        X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, seed=seed
-    )
+    return Run(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, seed=seed)
 
 
 def build_decision_boundary(run: Run, classifier_name: str) -> go.Figure:

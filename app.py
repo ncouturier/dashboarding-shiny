@@ -263,7 +263,7 @@ def server(input, output, session):
             f'<script>(function(){{var e=document.getElementById("vignette_{index}");'
             f'if(e)e.style.display="none";}})();</script>'
             f'<div style="height: {TILE_HEIGHT}px; display: flex; '
-            'align-items: center; justify-content: center; color: #808495; '
+            "align-items: center; justify-content: center; color: #808495; "
             'border: 1px dashed #d5d6d8; border-radius: 8px;">'
             f"⏳ {classifier_name}</div>"
         )

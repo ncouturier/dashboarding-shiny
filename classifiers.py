@@ -42,16 +42,12 @@ def get_classifiers(seed: int = DEFAULT_SEED) -> Dict[str, Any]:
         "Nearest Neighbors": KNeighborsClassifier(n_neighbors=3),
         "Linear SVM": SVC(kernel="linear", C=0.025, random_state=seed),
         "RBF SVM": SVC(gamma=2, C=1, random_state=seed),
-        "Gaussian Process": GaussianProcessClassifier(
-            kernel=1.0 * RBF(1.0), random_state=seed
-        ),
+        "Gaussian Process": GaussianProcessClassifier(kernel=1.0 * RBF(1.0), random_state=seed),
         "Decision Tree": DecisionTreeClassifier(max_depth=5, random_state=seed),
         "Random Forest": RandomForestClassifier(
             max_depth=5, n_estimators=10, max_features=1, random_state=seed
         ),
-        "Neural Net": MLPClassifier(
-            alpha=1, max_iter=1000, random_state=seed
-        ),
+        "Neural Net": MLPClassifier(alpha=1, max_iter=1000, random_state=seed),
         "AdaBoost": AdaBoostClassifier(random_state=seed),
         "Naive Bayes": GaussianNB(),
         "QDA": QuadraticDiscriminantAnalysis(),
