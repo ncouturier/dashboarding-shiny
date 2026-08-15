@@ -1,0 +1,51 @@
+name: requirements.txt
+
+# Posit Connect Cloud lit requirements.txt à la racine du dépôt ; les dépendances,
+# elles, sont tenues par uv.lock. Ce flux dérive l'un de l'autre à chaque poussée sur
+# main, de sorte que le déploiement ne puisse jamais partir d'une liste périmée.
+#
+# Aucun filtre de chemins : un requirements.txt modifié à la main est ainsi ramené sur
+# son gabarit au commit suivant, quel qu'il soit.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: requirements-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exporter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      # --frozen : échouer si uv.lock ne correspond plus à pyproject.toml, plutôt que
+      # de résoudre en silence et publier des versions que personne n'a verrouillées.
+      # --no-dev : Connect Cloud n'exécute ni pytest ni mypy.
+      # --no-hashes : Connect Cloud n'installe pas en mode --require-hashes.
+      - name: Exporter depuis uv.lock
+        run: uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt
+
+      # Une poussée signée par GITHUB_TOKEN ne redéclenche aucun flux : la boucle est
+      # fermée par GitHub, pas par une garde de notre part.
+      - name: Publier si le fichier a changé
+        run: |
+          if git diff --quiet -- requirements.txt; then
+            echo "requirements.txt déjà à jour"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add requirements.txt
+          git commit -m "chore: exporter requirements.txt depuis uv.lock"
+          git push
