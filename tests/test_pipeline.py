@@ -10,14 +10,22 @@ import pytest
 from classifiers import get_classifier_names
 from pipeline import build_decision_boundary, prepare_run
 
+LIBELLES = ("Exactitude", "Rappel", "Précision")
+LIBELLE_ET_VALEUR = rf"({'|'.join(LIBELLES)}) (\d\.\d{{2}})"
 
-def score_affiche(figure: go.Figure) -> Optional[float]:
-    """Lire le score annoté sur une vignette, ou None si elle n'en porte pas."""
+
+def metriques_affichees(figure: go.Figure) -> Optional[Dict[str, float]]:
+    """Lire les métriques annotées sur une vignette, ou None si elle n'en porte pas.
+
+    Le libellé fait partie de ce qui est vérifié : un nombre nu ne dirait pas de quelle
+    métrique il s'agit. Chaque métrique vit dans son annotation, pour porter son propre
+    texte de survol : il faut donc les parcourir toutes.
+    """
+    trouvees: Dict[str, float] = {}
     for annotation in figure.layout.annotations:
-        texte = str(annotation.text)
-        if re.fullmatch(r"\d\.\d{2}", texte):
-            return float(texte)
-    return None
+        for libelle, valeur in re.findall(LIBELLE_ET_VALEUR, str(annotation.text)):
+            trouvees[libelle] = float(valeur)
+    return trouvees or None
 
 
 def test_prepare_run_est_deterministe() -> None:
@@ -165,14 +173,50 @@ def test_build_decision_boundary_deterministes_insensibles_a_la_graine() -> None
         assert figure_a.to_json() == figure_b.to_json(), nom
 
 
-def test_build_decision_boundary_annote_un_score_sur_chaque_vignette() -> None:
-    """Teste que chacune des dix vignettes porte un score compris entre 0 et 1."""
+def test_build_decision_boundary_annote_les_metriques_sur_chaque_vignette() -> None:
+    """Teste que les dix vignettes portent les trois métriques, libellées et bornées."""
     run = prepare_run("moons", noise=0.3, n_samples=100, seed=42)
 
     for nom in get_classifier_names():
-        score = score_affiche(build_decision_boundary(run, nom))
-        assert score is not None, f"{nom} ne porte pas de score"
-        assert 0.0 <= score <= 1.0, f"{nom} : score hors bornes ({score})"
+        metriques = metriques_affichees(build_decision_boundary(run, nom))
+        assert metriques is not None, f"{nom} ne porte pas de métriques"
+        assert set(metriques) == set(LIBELLES), nom
+        for libelle, valeur in metriques.items():
+            assert 0.0 <= valeur <= 1.0, f"{nom} : {libelle} hors bornes ({valeur})"
+
+
+def test_chaque_metrique_rappelle_sa_definition_au_survol() -> None:
+    """Teste que chaque métrique porte sa définition en infobulle.
+
+    La définition vit sur l'annotation de la métrique, et non sur un bloc commun : une
+    annotation ne porte qu'un texte de survol, et c'est celle qu'on survole qu'il faut
+    définir.
+    """
+    run = prepare_run("moons", noise=0.3, n_samples=100, seed=42)
+    figure = build_decision_boundary(run, "Random Forest")
+
+    # Les retours à la ligne relèvent de la présentation : les neutraliser pour que les
+    # vérifications portent sur la formulation seule.
+    definitions = {
+        str(annotation.text)
+        .split()[0]: str(annotation.hovertext or "")
+        .replace("<br>", " ")
+        for annotation in figure.layout.annotations
+    }
+
+    for libelle in LIBELLES:
+        assert libelle in definitions, f"{libelle} n'a pas d'annotation propre"
+        assert definitions[
+            libelle
+        ].strip(), f"{libelle} n'a pas de définition au survol"
+
+    # Une définition recopiée d'une métrique sur l'autre passerait le test précédent.
+    assert len(set(definitions[libelle] for libelle in LIBELLES)) == len(LIBELLES)
+
+    # Le texte doit venir du glossaire, pas d'une reformulation parallèle.
+    assert "classe positive" in definitions["Rappel"]
+    assert "classe positive" in definitions["Précision"]
+    assert "toutes classes confondues" in definitions["Exactitude"]
 
 
 def test_le_score_porte_sur_l_ensemble_de_test() -> None:
@@ -197,8 +241,9 @@ def test_le_score_porte_sur_l_ensemble_de_test() -> None:
         f"({score_entrainement:.3f} contre {score_test:.3f})"
     )
 
-    annote = score_affiche(build_decision_boundary(run, "Decision Tree"))
-    assert annote is not None
+    metriques = metriques_affichees(build_decision_boundary(run, "Decision Tree"))
+    assert metriques is not None
+    annote = metriques["Exactitude"]
 
     # Le score annoté est arrondi à deux décimales : la tolérance doit l'absorber.
     assert annote == pytest.approx(score_test, abs=0.01)
@@ -206,14 +251,45 @@ def test_le_score_porte_sur_l_ensemble_de_test() -> None:
 
 
 def test_le_score_est_reproductible_a_graine_egale() -> None:
-    """Teste que la même graine redonne le même score."""
+    """Teste que la même graine redonne les mêmes métriques."""
     premier = prepare_run("circles", noise=0.2, n_samples=150, seed=7)
     second = prepare_run("circles", noise=0.2, n_samples=150, seed=7)
 
     for nom in get_classifier_names():
-        assert score_affiche(build_decision_boundary(premier, nom)) == score_affiche(
-            build_decision_boundary(second, nom)
-        ), nom
+        assert metriques_affichees(
+            build_decision_boundary(premier, nom)
+        ) == metriques_affichees(build_decision_boundary(second, nom)), nom
+
+
+def test_le_rappel_ne_recopie_pas_l_exactitude() -> None:
+    """Teste que le rappel est bien celui de la classe positive, sous son libellé.
+
+    Les deux métriques coïncident sur la plupart des vignettes : les distinguer demande
+    un cas où elles divergent. Un SVM linéaire sur des cercles ne peut pas séparer deux
+    classes concentriques — il range tout l'ensemble de test dans la classe positive.
+    Le rappel est alors parfait tandis que l'exactitude s'effondre, ce qui est
+    exactement ce que les libellés donnent à lire.
+    """
+    from sklearn.metrics import accuracy_score, recall_score
+
+    from classifiers import get_classifiers
+
+    run = prepare_run("circles", noise=0.5, n_samples=100, seed=8)
+    classifier = get_classifiers(seed=run.seed)["Linear SVM"]
+    classifier.fit(run.X_train, run.y_train)
+    y_pred = classifier.predict(run.X_test)
+
+    exactitude = accuracy_score(run.y_test, y_pred)
+    rappel = recall_score(run.y_test, y_pred, pos_label=1, zero_division=0)
+    assert rappel - exactitude > 0.2, (
+        "cas de test mal choisi : les deux métriques ne divergent plus assez "
+        f"(exactitude {exactitude:.3f}, rappel {rappel:.3f})"
+    )
+
+    metriques = metriques_affichees(build_decision_boundary(run, "Linear SVM"))
+    assert metriques is not None
+    assert metriques["Exactitude"] == pytest.approx(exactitude, abs=0.01)
+    assert metriques["Rappel"] == pytest.approx(rappel, abs=0.01)
 
 
 def test_build_decision_boundary_rend_une_vignette_de_repli(
@@ -241,5 +317,5 @@ def test_build_decision_boundary_rend_une_vignette_de_repli(
     assert figure.layout.title.text == "Decision Tree"
     assert "ajustement impossible" in figure.layout.annotations[0].text
     assert (
-        score_affiche(figure) is None
-    ), "la vignette de repli ne doit pas porter de score"
+        metriques_affichees(figure) is None
+    ), "la vignette de repli ne doit pas porter de métriques"

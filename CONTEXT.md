@@ -55,9 +55,30 @@ l'objet représenté dans chacune des dix vignettes.
 _Éviter_ : figure, graphique, visualisation, tracé
 
 **Score** (`score`) :
-Proportion de points de l'ensemble de test correctement classés, affichée dans un
-coin de la vignette.
-_Éviter_ : exactitude, précision, taux de bonne classification, performance
+Bloc de métriques affiché dans un coin de la vignette, chacune sous son libellé. Le
+mot désigne le bloc, jamais une métrique en particulier : celle qu'on vise se nomme.
+_Éviter_ : performance, résultat, note
+
+**Exactitude** (`accuracy`) :
+Proportion de points de l'ensemble de test correctement classés, toutes classes
+confondues.
+_Éviter_ : taux de bonne classification, justesse
+
+**Classe positive** (`pos_label`) :
+Celle des deux classes que le **rappel** et la **précision** rapportent — la classe 1,
+par convention. L'**exactitude** n'en dépend pas.
+_Éviter_ : classe cible, classe d'intérêt, label positif
+
+**Rappel** (`recall`) :
+Proportion des points de la classe positive que le classificateur retrouve. Ce qu'il
+ignore : les points rangés à tort dans cette classe. Un classificateur qui y range tout
+obtient un rappel parfait.
+_Éviter_ : sensibilité, couverture, taux de détection
+
+**Précision** (`precision`) :
+Proportion des points annoncés dans la classe positive qui en relèvent réellement.
+Complément du **rappel** : elle compte exactement les erreurs que celui-ci ne voit pas.
+_Éviter_ : exactitude, justesse, valeur prédictive
 
 ## Le comportement de l'interface
 

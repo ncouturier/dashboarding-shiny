@@ -11,6 +11,35 @@ import numpy as np
 import plotly.graph_objects as go
 from numpy.typing import NDArray
 from sklearn.base import BaseEstimator
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+
+# Classe positive du rappel et de la précision. Les jeux de données n'ont que deux
+# classes, 0 et 1 ; les deux métriques demandent laquelle elles rapportent,
+# contrairement à l'exactitude.
+CLASSE_POSITIVE = 1
+
+# Définition rappelée au survol de chaque métrique. Le texte reprend celui du glossaire
+# — deux formulations pour une même notion en feraient deux notions. Les retours à la
+# ligne sont explicites : une infobulle laissée libre s'étale sur toute la vignette.
+DEFINITIONS = {
+    "Exactitude": (
+        "Proportion de points de l'ensemble de test<br>"
+        "correctement classés, toutes classes confondues."
+    ),
+    "Rappel": (
+        "Proportion des points de la classe positive<br>"
+        "(classe 1) que le classificateur retrouve.<br>"
+        "Ne voit pas les points qu'il y range à tort."
+    ),
+    "Précision": (
+        "Proportion des points annoncés dans la classe<br>"
+        "positive (classe 1) qui en relèvent réellement.<br>"
+        "Compte les erreurs que le rappel ignore."
+    ),
+}
+
+# Pas vertical entre deux métriques empilées, en fraction de la hauteur du tracé.
+PAS_METRIQUE = 0.09
 
 
 def create_decision_boundary_plot(
@@ -25,9 +54,10 @@ def create_decision_boundary_plot(
     """
     Créer une visualisation de la frontière de décision pour un classificateur.
 
-    La figure porte, dans un coin, le score du classificateur sur l'ensemble de test.
-    Le classificateur doit donc être déjà ajusté : la fonction l'évalue, en plus de
-    prédire sur la grille.
+    La figure porte, dans un coin, le score du classificateur sur l'ensemble de test :
+    exactitude, rappel et précision, chacun sous son libellé et rappelant sa définition
+    au survol. Le classificateur doit donc être déjà ajusté : la fonction l'évalue, en
+    plus de prédire sur la grille.
 
     Args:
         classifier: Classificateur déjà ajusté sur l'ensemble d'entraînement
@@ -105,22 +135,67 @@ def create_decision_boundary_plot(
             )
         )
 
-    # Annoter le score : proportion de points de l'ensemble de test correctement
-    # classés, dans un coin plutôt que dans le titre — sous mise à jour continue, une
-    # valeur qui bouge dans le titre rend la lecture instable.
-    fig.add_annotation(
-        x=0.99,
-        y=0.02,
-        xref="paper",
-        yref="paper",
-        text=f"{classifier.score(X_test, y_test):.2f}",
-        showarrow=False,
-        xanchor="right",
-        yanchor="bottom",
-        font=dict(size=14, color="black"),
-        bgcolor="rgba(255, 255, 255, 0.7)",
-        borderpad=2,
+    # Annoter le score dans un coin plutôt que dans le titre — sous mise à jour
+    # continue, une valeur qui bouge dans le titre rend la lecture instable.
+    #
+    # Une seule prédiction sert aux deux métriques. classifier.score prédirait une
+    # seconde fois sur le même ensemble, pour retrouver l'exactitude.
+    y_pred = classifier.predict(X_test)
+
+    # Chaque métrique porte son libellé : des nombres nus les uns sous les autres ne se
+    # distingueraient pas, et c'est leur écart qui instruit.
+    #
+    # Les trois se complètent, et aucune paire ne suffirait. La répartition en ensembles
+    # ne garantit pas l'équilibre des classes, et la classe positive est souvent la plus
+    # facile : le rappel sature alors à 1 sur presque toutes les vignettes. Ce qu'il
+    # ignore — les points rangés à tort dans la classe positive — est précisément ce que
+    # la précision compte. Un SVM linéaire sur des cercles le montre : rappel parfait,
+    # précision au ras de la proportion de la classe positive.
+    #
+    # zero_division couvre les cas indéfinis — ensemble de test dépourvu de classe
+    # positive pour le rappel, aucune prédiction positive pour la précision. La métrique
+    # vaut alors 0 plutôt que d'avertir à chaque vignette.
+    exactitude = accuracy_score(y_test, y_pred)
+    rappel = recall_score(y_test, y_pred, pos_label=CLASSE_POSITIVE, zero_division=0)
+    precision = precision_score(
+        y_test, y_pred, pos_label=CLASSE_POSITIVE, zero_division=0
     )
+
+    # Une annotation par métrique, et non trois lignes dans une seule : une annotation
+    # ne porte qu'un texte de survol, et c'est la définition de la métrique survolée
+    # qu'il faut montrer. Les trois sont empilées dans l'ordre de lecture, la première
+    # nommée en haut — d'où le parcours à l'envers, les positions se comptant depuis le
+    # bas de la vignette.
+    metriques = (
+        ("Exactitude", exactitude),
+        ("Rappel", rappel),
+        ("Précision", precision),
+    )
+    for rang, (libelle, valeur) in enumerate(reversed(metriques)):
+        fig.add_annotation(
+            x=0.99,
+            y=0.02 + rang * PAS_METRIQUE,
+            xref="paper",
+            yref="paper",
+            text=f"{libelle} {valeur:.2f}",
+            # Renseigner hovertext suffit : Plotly active alors de lui-même la capture
+            # des événements de souris sur la boîte de l'annotation.
+            hovertext=DEFINITIONS[libelle],
+            # hoverlabel d'annotation n'accepte que bgcolor, bordercolor et font :
+            # ni align, ni les autres propriétés du hoverlabel des traces.
+            hoverlabel=dict(
+                bgcolor="white",
+                bordercolor="#d5d6d8",
+                font=dict(size=11, color="black"),
+            ),
+            showarrow=False,
+            xanchor="right",
+            yanchor="bottom",
+            align="right",
+            font=dict(size=11, color="black"),
+            bgcolor="rgba(255, 255, 255, 0.75)",
+            borderpad=3,
+        )
 
     # Mettre à jour le layout
     fig.update_layout(
