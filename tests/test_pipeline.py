@@ -140,7 +140,9 @@ def test_prepare_run_conserve_la_graine() -> None:
     assert run.seed == 7
 
 
-def test_build_decision_boundary_graine_change_les_classificateurs_stochastiques() -> None:
+def test_build_decision_boundary_graine_change_les_classificateurs_stochastiques() -> (
+    None
+):
     """Teste que la graine modifie l'ajustement d'un classificateur stochastique."""
     premier = prepare_run("moons", noise=0.3, n_samples=100, seed=42)
     second = prepare_run("moons", noise=0.3, n_samples=100, seed=7)
@@ -240,4 +242,6 @@ def test_build_decision_boundary_rend_une_vignette_de_repli(
     assert isinstance(figure, go.Figure)
     assert figure.layout.title.text == "Decision Tree"
     assert "ajustement impossible" in figure.layout.annotations[0].text
-    assert score_affiche(figure) is None, "la vignette de repli ne doit pas porter de score"
+    assert (
+        score_affiche(figure) is None
+    ), "la vignette de repli ne doit pas porter de score"

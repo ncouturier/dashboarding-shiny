@@ -51,7 +51,9 @@ def test_get_classifiers_propage_la_graine() -> None:
     classifiers = get_classifiers(seed=7)
 
     stochastiques = [
-        nom for nom, classifier in classifiers.items() if "random_state" in classifier.get_params()
+        nom
+        for nom, classifier in classifiers.items()
+        if "random_state" in classifier.get_params()
     ]
     assert len(stochastiques) == 7
 

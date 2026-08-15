@@ -190,7 +190,9 @@ def test_app_reutilise_le_graphique_plotly() -> None:
     assert "Plotly.react" in source
     # Les emplacements doivent vivre dans l'interface statique, hors des sorties :
     # une sortie voit son contenu intégralement remplacé à chaque mise à jour.
-    assert 'ui.div(id=f"vignette_{i}"' in source or "ui.div(id=f'vignette_{i}'" in source
+    assert (
+        'ui.div(id=f"vignette_{i}"' in source or "ui.div(id=f'vignette_{i}'" in source
+    )
     assert "to_html" not in source
 
 
