@@ -25,7 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10
+      # Version exacte : astral-sh/setup-uv ne publie plus d'étiquette mobile de
+      # version majeure depuis la v7, `@v10` ne se résout pas.
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
 
@@ -40,12 +42,14 @@ jobs:
       # fermée par GitHub, pas par une garde de notre part.
       - name: Publier si le fichier a changé
         run: |
-          if git diff --quiet -- requirements.txt; then
+          # L'indexation précède la comparaison : un requirements.txt supprimé du dépôt
+          # est réengendré en fichier non suivi, que `git diff` seul ne voit pas.
+          git add requirements.txt
+          if git diff --cached --quiet -- requirements.txt; then
             echo "requirements.txt déjà à jour"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add requirements.txt
           git commit -m "chore: exporter requirements.txt depuis uv.lock"
           git push
